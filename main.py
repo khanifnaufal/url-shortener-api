@@ -1,13 +1,19 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 import string
 import secrets
+import logging
 
 import models
 from database import Base, engine, get_db
 from typing import List
 from schemas import ShortenRequest, ShortenResponse, URLStatsResponse, URLDetailResponse
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Buat semua tabel di database saat aplikasi pertama kali dijalankan.
 # Jika tabel sudah ada, perintah ini diabaikan (tidak menghapus data).
@@ -18,6 +24,31 @@ app = FastAPI(
     description="API untuk memperpendek URL panjang menjadi short code yang mudah dibagikan.",
     version="1.0.0",
 )
+
+
+@app.exception_handler(Exception)
+def global_exception_handler(request: Request, exc: Exception):
+    # Jika exception adalah HTTPException, kembalikan detail aslinya
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail}
+        )
+    # Jika exception adalah validation error dari Pydantic/FastAPI, kembalikan detail validasinya
+    if isinstance(exc, RequestValidationError):
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={"detail": exc.errors()}
+        )
+
+    # Log stack trace di sisi server
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+
+    # Kembalikan error 500 bersih ke user
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Terjadi kesalahan internal pada server. Silakan coba beberapa saat lagi."}
+    )
 
 
 @app.get("/", tags=["Health Check"])
