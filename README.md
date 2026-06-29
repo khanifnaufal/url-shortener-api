@@ -147,10 +147,21 @@ The application will now be running and accessible at:
 
 ---
 
+## Security Considerations
+
+To ensure the safety and reliability of the service, several security measures have been implemented:
+*   **Rate Limiting**: Integrated `slowapi` to prevent API abuse and brute-force attempts. The `POST /shorten` endpoint is limited to **10 requests per minute per IP address**. Exceeding this limit returns an HTTP `429 Too Many Requests` error.
+*   **Internal Network Scanning (SSRF) Prevention**: The API validates the `long_url` before shortening it. Any target URL resolving to localhost (`127.0.0.1`, `::1`), private IP ranges (e.g., `10.x.x.x`, `192.168.x.x`), or link-local addresses is blocked (returning HTTP `400 Bad Request`).
+*   **Redirect Loop Prevention**: The API prevents users from shortening a URL that points to an existing short code on the same server, eliminating circular redirections.
+*   **SQL Injection Protection**: Database queries are built using SQLAlchemy's ORM, which automatically uses parameterized queries to secure inputs against SQL injection.
+
+---
+
 ## Future Improvements
 
 Planned features for future iterations:
 1.  **Expiry Link**: Add expiration timestamps to short links (e.g. link expires in 24 hours or 7 days).
-2.  **Rate Limiting**: Limit the rate of short URL generation per client IP address to prevent abuse.
-3.  **Custom Domain**: Support unique custom domain names as the base of the generated short URLs.
-4.  **User Authentication**: Implement user registration and login so users can manage (edit/delete) their own links.
+2.  **Malicious URL Screening**: Integrate the Google Safe Browsing API to automatically screen and block malicious or phishing URLs.
+3.  **API Key Authentication**: Require an API key for the `/shorten` endpoint to control access and assign custom quotas.
+4.  **Custom Domain**: Support unique custom domain names as the base of the generated short URLs.
+5.  **User Authentication**: Implement user registration and login so users can manage (edit/delete) their own links.

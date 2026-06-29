@@ -5,15 +5,26 @@ from sqlalchemy.orm import Session
 import string
 import secrets
 import logging
+from typing import List
+from urllib.parse import urlparse
+import socket
+import ipaddress
+
+# Slowapi imports
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 import models
 from database import Base, engine, get_db
-from typing import List
 from schemas import ShortenRequest, ShortenResponse, URLStatsResponse, URLDetailResponse
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Setup slowapi Limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Buat semua tabel di database saat aplikasi pertama kali dijalankan.
 # Jika tabel sudah ada, perintah ini diabaikan (tidak menghapus data).
@@ -24,10 +35,48 @@ app = FastAPI(
     description="API untuk memperpendek URL panjang menjadi short code yang mudah dibagikan.",
     version="1.0.0",
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+def is_private_or_local_url(url: str) -> bool:
+    """Mengecek apakah URL mengarah ke localhost, loopback, link-local, atau range IP privat."""
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return True
+
+        # Cek host lokal secara langsung
+        if hostname.lower() in ("localhost", "127.0.0.1", "[::1]", "0.0.0.0"):
+            return True
+
+        # Cek apakah hostname adalah IP Address dan periksa range-nya
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_loopback or ip.is_private or ip.is_link_local:
+                return True
+        except ValueError:
+            # Jika bukan IP Address langsung, coba resolve via DNS
+            try:
+                ip_str = socket.gethostbyname(hostname)
+                ip = ipaddress.ip_address(ip_str)
+                if ip.is_loopback or ip.is_private or ip.is_link_local:
+                    return True
+            except Exception:
+                pass
+
+        return False
+    except Exception:
+        return True
 
 
 @app.exception_handler(Exception)
 def global_exception_handler(request: Request, exc: Exception):
+    # Jika exception adalah RateLimitExceeded dari slowapi
+    if isinstance(exc, RateLimitExceeded):
+        return _rate_limit_exceeded_handler(request, exc)
+
     # Jika exception adalah HTTPException, kembalikan detail aslinya
     if isinstance(exc, HTTPException):
         return JSONResponse(
@@ -58,6 +107,7 @@ def root():
 
 
 @app.post("/shorten", response_model=ShortenResponse, status_code=status.HTTP_201_CREATED, tags=["URL Shortener"])
+@limiter.limit("10/minute")
 def shorten_url(
     payload: ShortenRequest,
     request: Request,
@@ -69,6 +119,28 @@ def shorten_url(
     Menerima URL panjang dan alias opsional. Menghasilkan short code unik,
     menyimpan ke database, dan mengembalikan respon berupa short code dan URL pendek.
     """
+    # A. Cek apakah long_url mengarah ke localhost atau IP privat (mencegah SSRF/network scanning)
+    if is_private_or_local_url(str(payload.long_url)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="URL tidak diperbolehkan (localhost atau IP privat)"
+        )
+
+    # B. Cek apakah long_url mengarah ke short_code dari domain sendiri (mencegah loop redireksi)
+    parsed_long = urlparse(str(payload.long_url))
+    request_host = request.url.netloc
+
+    if parsed_long.netloc == request_host:
+        path_parts = [p for p in parsed_long.path.split("/") if p]
+        if path_parts:
+            short_code_candidate = path_parts[0]
+            existing_short = db.query(models.URL).filter(models.URL.short_code == short_code_candidate).first()
+            if existing_short:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="URL tidak diperbolehkan karena dapat menyebabkan loop redireksi"
+                )
+
     # 1. Tentukan short_code yang akan digunakan
     if payload.custom_alias:
         short_code = payload.custom_alias

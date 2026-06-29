@@ -20,8 +20,8 @@ class ShortenRequest(BaseModel):
                 return None
             if not all(c.isalnum() or c == "-" for c in v):
                 raise ValueError("custom_alias hanya boleh berisi huruf, angka, dan tanda hubung (-)")
-            if len(v) > 50:
-                raise ValueError("custom_alias maksimal 50 karakter")
+            if len(v) > 20:
+                raise ValueError("custom_alias maksimal 20 karakter")
         return v
 
 
