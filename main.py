@@ -1,7 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status, Request
+from sqlalchemy.orm import Session
+import string
+import secrets
 
 import models
-from database import Base, engine
+from database import Base, engine, get_db
+from schemas import ShortenRequest, ShortenResponse
 
 # Buat semua tabel di database saat aplikasi pertama kali dijalankan.
 # Jika tabel sudah ada, perintah ini diabaikan (tidak menghapus data).
@@ -18,3 +22,66 @@ app = FastAPI(
 def root():
     """Endpoint health check — memastikan API berjalan dengan baik."""
     return {"message": "URL Shortener API is running"}
+
+
+@app.post("/shorten", response_model=ShortenResponse, status_code=status.HTTP_201_CREATED, tags=["URL Shortener"])
+def shorten_url(
+    payload: ShortenRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint untuk memperpendek URL panjang.
+
+    Menerima URL panjang dan alias opsional. Menghasilkan short code unik,
+    menyimpan ke database, dan mengembalikan respon berupa short code dan URL pendek.
+    """
+    # 1. Tentukan short_code yang akan digunakan
+    if payload.custom_alias:
+        short_code = payload.custom_alias
+        # Cek apakah alias sudah digunakan
+        existing_url = db.query(models.URL).filter(models.URL.short_code == short_code).first()
+        if existing_url:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="alias sudah dipakai"
+            )
+    else:
+        # Generate random short_code 6 karakter alphanumeric
+        # Retry generate kalau ternyata sudah ada di database (max 5x retry)
+        characters = string.ascii_letters + string.digits
+        max_retries = 5
+        short_code = None
+
+        for _ in range(max_retries):
+            potential_code = "".join(secrets.choice(characters) for _ in range(6))
+            existing_url = db.query(models.URL).filter(models.URL.short_code == potential_code).first()
+            if not existing_url:
+                short_code = potential_code
+                break
+
+        if not short_code:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Gagal menghasilkan short code unik setelah 5 kali percobaan."
+            )
+
+    # 2. Simpan ke database
+    db_url = models.URL(
+        short_code=short_code,
+        long_url=str(payload.long_url)
+    )
+    db.add(db_url)
+    db.commit()
+    db.refresh(db_url)
+
+    # 3. Buat short_url lengkap menggunakan base_url dari request
+    short_url = f"{request.base_url}{db_url.short_code}"
+
+    return ShortenResponse(
+        short_code=db_url.short_code,
+        short_url=short_url,
+        long_url=db_url.long_url,
+        created_at=db_url.created_at
+    )
+
