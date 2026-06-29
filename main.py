@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 import string
 import secrets
@@ -84,4 +85,27 @@ def shorten_url(
         long_url=db_url.long_url,
         created_at=db_url.created_at
     )
+
+
+@app.get("/{short_code}", tags=["URL Shortener"])
+def redirect_to_url(
+    short_code: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Redirect short code ke original URL dan menambahkan jumlah klik (click_count).
+    """
+    db_url = db.query(models.URL).filter(models.URL.short_code == short_code).first()
+    if not db_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Short URL tidak ditemukan"
+        )
+
+    # Increment click_count
+    db_url.click_count += 1
+    db.commit()
+
+    # Redirect ke long_url dengan status code 307
+    return RedirectResponse(url=db_url.long_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
