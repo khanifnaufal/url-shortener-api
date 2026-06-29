@@ -34,3 +34,27 @@ class ShortenResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class URLStatsResponse(BaseModel):
+    """Schema untuk response GET /stats/{short_code}."""
+
+    short_code: str
+    long_url: str
+    click_count: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class URLDetailResponse(BaseModel):
+    """Schema detail URL lengkap untuk list semua URL."""
+
+    short_code: str
+    short_url: str
+    long_url: str
+    click_count: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+

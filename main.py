@@ -6,7 +6,8 @@ import secrets
 
 import models
 from database import Base, engine, get_db
-from schemas import ShortenRequest, ShortenResponse
+from typing import List
+from schemas import ShortenRequest, ShortenResponse, URLStatsResponse, URLDetailResponse
 
 # Buat semua tabel di database saat aplikasi pertama kali dijalankan.
 # Jika tabel sudah ada, perintah ini diabaikan (tidak menghapus data).
@@ -85,6 +86,48 @@ def shorten_url(
         long_url=db_url.long_url,
         created_at=db_url.created_at
     )
+
+
+@app.get("/urls", response_model=List[URLDetailResponse], tags=["URL Stats"])
+def list_urls(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Melihat semua short URL yang pernah dibuat, diurutkan dari yang terbaru.
+    """
+    db_urls = db.query(models.URL).order_by(models.URL.created_at.desc(), models.URL.id.desc()).all()
+
+    # Buat response list yang menyertakan short_url dinamis
+    response_list = []
+    for db_url in db_urls:
+        response_list.append(
+            URLDetailResponse(
+                short_code=db_url.short_code,
+                short_url=f"{request.base_url}{db_url.short_code}",
+                long_url=db_url.long_url,
+                click_count=db_url.click_count,
+                created_at=db_url.created_at
+            )
+        )
+    return response_list
+
+
+@app.get("/stats/{short_code}", response_model=URLStatsResponse, tags=["URL Stats"])
+def get_url_stats(
+    short_code: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Mendapatkan statistik akses (click_count) untuk short_code tertentu.
+    """
+    db_url = db.query(models.URL).filter(models.URL.short_code == short_code).first()
+    if not db_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Short URL tidak ditemukan"
+        )
+    return db_url
 
 
 @app.get("/{short_code}", tags=["URL Shortener"])
