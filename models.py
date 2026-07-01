@@ -14,6 +14,8 @@ class URL(Base):
     long_url = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     click_count = Column(Integer, default=0, nullable=False)
+    # Nullable — None berarti link tidak pernah expired
+    expires_at = Column(DateTime(timezone=True), nullable=True, default=None)
 
     def __repr__(self) -> str:
         return f"<URL id={self.id} short_code='{self.short_code}' long_url='{self.long_url}'>"

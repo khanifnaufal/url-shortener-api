@@ -9,6 +9,7 @@ class ShortenRequest(BaseModel):
 
     long_url: HttpUrl
     custom_alias: Optional[str] = None
+    expires_in_hours: Optional[int] = None
 
     @field_validator("custom_alias")
     @classmethod
@@ -24,6 +25,14 @@ class ShortenRequest(BaseModel):
                 raise ValueError("custom_alias maksimal 20 karakter")
         return v
 
+    @field_validator("expires_in_hours")
+    @classmethod
+    def expires_must_be_non_negative(cls, v: Optional[int]) -> Optional[int]:
+        """Pastikan expires_in_hours tidak negatif."""
+        if v is not None and v < 0:
+            raise ValueError("expires_in_hours tidak boleh negatif")
+        return v
+
 
 class ShortenResponse(BaseModel):
     """Schema untuk response POST /shorten."""
@@ -32,6 +41,7 @@ class ShortenResponse(BaseModel):
     short_url: str
     long_url: str
     created_at: datetime
+    expires_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
@@ -43,6 +53,8 @@ class URLStatsResponse(BaseModel):
     long_url: str
     click_count: int
     created_at: datetime
+    expires_at: Optional[datetime] = None
+    is_expired: bool
     qr_url: str
 
     model_config = {"from_attributes": True}

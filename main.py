@@ -11,6 +11,7 @@ from typing import List
 from urllib.parse import urlparse
 import socket
 import ipaddress
+from datetime import datetime, timedelta, timezone
 
 # Slowapi imports
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -173,23 +174,30 @@ def shorten_url(
                 detail="Gagal menghasilkan short code unik setelah 5 kali percobaan."
             )
 
-    # 2. Simpan ke database
+    # 2. Hitung expires_at jika expires_in_hours diisi
+    expires_at = None
+    if payload.expires_in_hours is not None:
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=payload.expires_in_hours)
+
+    # 3. Simpan ke database
     db_url = models.URL(
         short_code=short_code,
-        long_url=str(payload.long_url)
+        long_url=str(payload.long_url),
+        expires_at=expires_at
     )
     db.add(db_url)
     db.commit()
     db.refresh(db_url)
 
-    # 3. Buat short_url lengkap menggunakan base_url dari request
+    # 4. Buat short_url lengkap menggunakan base_url dari request
     short_url = f"{request.base_url}{db_url.short_code}"
 
     return ShortenResponse(
         short_code=db_url.short_code,
         short_url=short_url,
         long_url=db_url.long_url,
-        created_at=db_url.created_at
+        created_at=db_url.created_at,
+        expires_at=db_url.expires_at
     )
 
 
@@ -280,6 +288,16 @@ def get_url_stats(
         long_url=db_url.long_url,
         click_count=db_url.click_count,
         created_at=db_url.created_at,
+        expires_at=db_url.expires_at,
+        is_expired=(
+            db_url.expires_at is not None
+            and datetime.now(timezone.utc) > db_url.expires_at.replace(tzinfo=timezone.utc)
+            if db_url.expires_at and db_url.expires_at.tzinfo is None
+            else (
+                db_url.expires_at is not None
+                and datetime.now(timezone.utc) > db_url.expires_at
+            )
+        ),
         qr_url=f"/qr/{db_url.short_code}"
     )
 
@@ -298,6 +316,18 @@ def redirect_to_url(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Short URL tidak ditemukan"
         )
+
+    # Cek apakah link sudah expired
+    if db_url.expires_at is not None:
+        # Handle expires_at yang mungkin naive (tanpa timezone info) dari SQLite
+        expires_at = db_url.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) > expires_at:
+            raise HTTPException(
+                status_code=status.HTTP_410_GONE,
+                detail="Short URL ini sudah expired"
+            )
 
     # Increment click_count
     db_url.click_count += 1
