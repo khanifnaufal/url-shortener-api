@@ -1,6 +1,6 @@
 # URL Shortener API
 
-A simple, fast, and robust URL shortener API built with Python and FastAPI. It features custom alias support, auto-generated short codes, link click analytics, statistics query, and global exception handling.
+A simple, fast, and robust URL shortener API built with Python and FastAPI. It features custom alias support, auto-generated short codes, link expiration, QR code generation, API key authentication, click analytics, and global exception handling.
 
 ---
 
@@ -11,6 +11,9 @@ This project is built using the following modern Python backend technologies:
 *   **SQLite**: A lightweight, serverless relational database for storing URL mappings.
 *   **SQLAlchemy**: An Object Relational Mapper (ORM) to interact with the SQLite database securely and efficiently.
 *   **Pydantic**: Data validation and settings management using python type annotations.
+*   **slowapi**: Rate limiting middleware for FastAPI.
+*   **qrcode[pil]**: QR code image generation library.
+*   **python-dotenv**: Loads environment variables from `.env` file.
 
 ---
 
@@ -45,7 +48,18 @@ Install the required packages using `requirements.txt`:
 pip install -r requirements.txt
 ```
 
-### 4. Run the Local Server (Uvicorn)
+### 4. Configure Environment Variables
+Copy the example environment file and fill in your secret API key:
+```bash
+cp .env.example .env
+```
+Then edit `.env`:
+```
+API_KEY=your-secret-api-key-here
+```
+> ⚠️ **Never commit `.env` to version control.** It is already listed in `.gitignore`.
+
+### 5. Run the Local Server (Uvicorn)
 Start the FastAPI application with hot-reload enabled:
 ```bash
 uvicorn main:app --reload
@@ -53,6 +67,42 @@ uvicorn main:app --reload
 The application will now be running and accessible at:
 *   API Base URL: **`http://127.0.0.1:8000`**
 *   Interactive API Docs (Swagger UI): **`http://127.0.0.1:8000/docs`**
+
+---
+
+## Authentication
+
+Some endpoints require an **API key** to be passed via the `X-API-Key` HTTP header.
+
+### Which endpoints require authentication?
+| Endpoint | Auth Required |
+|---|---|
+| `POST /shorten` | ✅ Yes |
+| `GET /urls` | ✅ Yes |
+| `GET /{short_code}` | ❌ No (public redirect) |
+| `GET /stats/{short_code}` | ❌ No (public stats) |
+| `GET /qr/{short_code}` | ❌ No (public QR code) |
+
+### How to use in Postman
+1. Open Postman and select your request (e.g., `POST /shorten`).
+2. Go to the **Headers** tab.
+3. Add a new key: `X-API-Key` with value: `your-secret-api-key-here`.
+4. Send the request.
+
+### Example using curl
+```bash
+curl -X POST http://localhost:8000/shorten \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-secret-api-key-here" \
+  -d '{"long_url": "https://google.com"}'
+```
+
+### Error Responses
+*   **`401 Unauthorized`** — Header `X-API-Key` tidak ada atau nilainya salah:
+    ```json
+    { "detail": "API key tidak valid atau tidak ditemukan" }
+    ```
+*   **`422 Unprocessable Entity`** — Header `X-API-Key` tidak dikirim sama sekali (FastAPI validation).
 
 ---
 
@@ -68,14 +118,16 @@ The application will now be running and accessible at:
     }
     ```
 
-### 2. Shorten URL
+### 2. Shorten URL 🔒
 *   **Endpoint**: `POST /shorten`
-*   **Description**: Creates a new short URL. If `custom_alias` is not provided, a random 6-character alphanumeric code is automatically generated.
+*   **Auth**: Required (`X-API-Key` header)
+*   **Description**: Creates a new short URL. Optionally set a custom alias and/or expiry duration.
 *   **Sample Request Body (JSON)**:
     ```json
     {
       "long_url": "https://google.com",
-      "custom_alias": "google"
+      "custom_alias": "google",
+      "expires_in_hours": 24
     }
     ```
 *   **Sample Response (201 Created)**:
@@ -84,84 +136,67 @@ The application will now be running and accessible at:
       "short_code": "google",
       "short_url": "http://127.0.0.1:8000/google",
       "long_url": "https://google.com/",
-      "created_at": "2026-06-29T15:20:00"
+      "created_at": "2026-07-01T12:00:00",
+      "expires_at": "2026-07-02T12:00:00"
     }
     ```
 *   **Possible Errors**:
-    *   `400 Bad Request` : If the custom alias is already taken (`"detail": "alias sudah dipakai"`).
-    *   `422 Unprocessable Entity` : If the input URL is invalid (e.g. missing HTTP/HTTPS scheme).
+    *   `400 Bad Request`: Custom alias already taken.
+    *   `401 Unauthorized`: Missing or invalid API key.
+    *   `422 Unprocessable Entity`: Invalid URL or input.
 
 ### 3. URL Redirection
 *   **Endpoint**: `GET /{short_code}`
-*   **Description**: Redirects the visitor to the original long URL and increments the click count in the database.
+*   **Description**: Redirects the visitor to the original long URL and increments the click count.
 *   **Sample URL**: `http://127.0.0.1:8000/google`
-*   **Behavior**: Automatically redirects the client (HTTP Status `307 Temporary Redirect`) to the target long URL (`https://google.com`).
-*   **Sample Error (404 Not Found)**:
-    ```json
-    {
-      "detail": "Short URL tidak ditemukan"
-    }
-    ```
+*   **Behavior**: Redirects (HTTP `307`) to the target long URL.
+*   **Possible Errors**:
+    *   `404 Not Found`: Short code does not exist.
+    *   `410 Gone`: Short URL has expired.
 
 ### 4. URL Statistics
 *   **Endpoint**: `GET /stats/{short_code}`
-*   **Description**: Retrieves the click count and metadata details for a specific short code.
+*   **Description**: Retrieves click count and metadata for a specific short code.
 *   **Sample Response (200 OK)**:
     ```json
     {
       "short_code": "google",
       "long_url": "https://google.com/",
-      "click_count": 1,
-      "created_at": "2026-06-29T15:20:00"
-    }
-    ```
-*   **Sample Error (404 Not Found)**:
-    ```json
-    {
-      "detail": "Short URL tidak ditemukan"
+      "click_count": 5,
+      "created_at": "2026-07-01T12:00:00",
+      "expires_at": "2026-07-02T12:00:00",
+      "is_expired": false,
+      "qr_url": "/qr/google"
     }
     ```
 
-### 5. List All URLs
+### 5. List All URLs 🔒
 *   **Endpoint**: `GET /urls`
-*   **Description**: Lists all created short URL records sorted by the newest entry first. Extremely helpful for debugging and demonstration.
-*   **Sample Response (200 OK)**:
-    ```json
-    [
-      {
-        "short_code": "google",
-        "short_url": "http://127.0.0.1:8000/google",
-        "long_url": "https://google.com/",
-        "click_count": 1,
-        "created_at": "2026-06-29T15:20:00"
-      },
-      {
-        "short_code": "YKzcJW",
-        "short_url": "http://127.0.0.1:8000/YKzcJW",
-        "long_url": "https://google.com/",
-        "click_count": 0,
-        "created_at": "2026-06-29T15:19:00"
-      }
-    ]
-    ```
+*   **Auth**: Required (`X-API-Key` header)
+*   **Description**: Lists all created short URL records sorted by newest first.
+
+### 6. QR Code
+*   **Endpoint**: `GET /qr/{short_code}`
+*   **Description**: Returns a QR code PNG image for the given short code. Generated on-the-fly in memory.
+*   **Sample URL**: `http://127.0.0.1:8000/qr/google`
+*   **Response**: `image/png` — open directly in a browser to display.
 
 ---
 
 ## Security Considerations
 
-To ensure the safety and reliability of the service, several security measures have been implemented:
-*   **Rate Limiting**: Integrated `slowapi` to prevent API abuse and brute-force attempts. The `POST /shorten` endpoint is limited to **10 requests per minute per IP address**. Exceeding this limit returns an HTTP `429 Too Many Requests` error.
-*   **Internal Network Scanning (SSRF) Prevention**: The API validates the `long_url` before shortening it. Any target URL resolving to localhost (`127.0.0.1`, `::1`), private IP ranges (e.g., `10.x.x.x`, `192.168.x.x`), or link-local addresses is blocked (returning HTTP `400 Bad Request`).
-*   **Redirect Loop Prevention**: The API prevents users from shortening a URL that points to an existing short code on the same server, eliminating circular redirections.
-*   **SQL Injection Protection**: Database queries are built using SQLAlchemy's ORM, which automatically uses parameterized queries to secure inputs against SQL injection.
+*   **API Key Authentication**: `POST /shorten` and `GET /urls` are protected by an `X-API-Key` header. The key is stored in `.env` and never committed to version control. Comparison uses `secrets.compare_digest` to prevent timing attacks.
+*   **Rate Limiting**: Integrated `slowapi` to prevent API abuse. The `POST /shorten` endpoint is limited to **10 requests per minute per IP**. Returns `429 Too Many Requests` when exceeded.
+*   **SSRF Prevention**: Any `long_url` resolving to localhost, private IP ranges, or link-local addresses is blocked (`400 Bad Request`).
+*   **Redirect Loop Prevention**: Shortening a URL that points to an existing short code on the same server is blocked.
+*   **SQL Injection Protection**: All queries use SQLAlchemy ORM with parameterized statements.
 
 ---
 
 ## Future Improvements
 
 Planned features for future iterations:
-1.  **Expiry Link**: Add expiration timestamps to short links (e.g. link expires in 24 hours or 7 days).
-2.  **Malicious URL Screening**: Integrate the Google Safe Browsing API to automatically screen and block malicious or phishing URLs.
-3.  **API Key Authentication**: Require an API key for the `/shorten` endpoint to control access and assign custom quotas.
-4.  **Custom Domain**: Support unique custom domain names as the base of the generated short URLs.
-5.  **User Authentication**: Implement user registration and login so users can manage (edit/delete) their own links.
+1.  **Malicious URL Screening**: Integrate Google Safe Browsing API to block phishing URLs.
+2.  **Custom Domain**: Support custom domain names as the base of generated short URLs.
+3.  **User Authentication**: User registration and login so users can manage their own links.
+4.  **Bulk Shorten**: Accept multiple URLs in a single `POST /shorten` request.

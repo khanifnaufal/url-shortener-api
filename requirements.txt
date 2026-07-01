@@ -3,3 +3,4 @@ uvicorn[standard]==0.30.1
 sqlalchemy==2.0.30
 slowapi==0.1.10
 qrcode[pil]
+python-dotenv

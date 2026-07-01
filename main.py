@@ -21,6 +21,7 @@ from slowapi.errors import RateLimitExceeded
 import models
 from database import Base, engine, get_db
 from schemas import ShortenRequest, ShortenResponse, URLStatsResponse, URLDetailResponse
+from auth import verify_api_key
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -109,7 +110,7 @@ def root():
     return {"message": "URL Shortener API is running"}
 
 
-@app.post("/shorten", response_model=ShortenResponse, status_code=status.HTTP_201_CREATED, tags=["URL Shortener"])
+@app.post("/shorten", response_model=ShortenResponse, status_code=status.HTTP_201_CREATED, tags=["URL Shortener"], dependencies=[Depends(verify_api_key)])
 @limiter.limit("10/minute")
 def shorten_url(
     payload: ShortenRequest,
@@ -201,7 +202,7 @@ def shorten_url(
     )
 
 
-@app.get("/urls", response_model=List[URLDetailResponse], tags=["URL Stats"])
+@app.get("/urls", response_model=List[URLDetailResponse], tags=["URL Stats"], dependencies=[Depends(verify_api_key)])
 def list_urls(
     request: Request,
     db: Session = Depends(get_db)
