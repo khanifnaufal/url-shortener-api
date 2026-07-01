@@ -43,6 +43,7 @@ class URLStatsResponse(BaseModel):
     long_url: str
     click_count: int
     created_at: datetime
+    qr_url: str
 
     model_config = {"from_attributes": True}
 

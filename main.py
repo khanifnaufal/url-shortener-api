@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, StreamingResponse
+import io
+import qrcode
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 import string
@@ -216,13 +218,17 @@ def list_urls(
     return response_list
 
 
-@app.get("/stats/{short_code}", response_model=URLStatsResponse, tags=["URL Stats"])
-def get_url_stats(
+@app.get("/qr/{short_code}", tags=["QR Code"])
+def get_qr_code(
     short_code: str,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
-    Mendapatkan statistik akses (click_count) untuk short_code tertentu.
+    Generate dan kembalikan QR code PNG untuk short_code tertentu.
+
+    QR code berisi full short URL (misal: http://localhost:8000/{short_code}).
+    Gambar dibuat on-the-fly di memory, tidak disimpan ke disk.
     """
     db_url = db.query(models.URL).filter(models.URL.short_code == short_code).first()
     if not db_url:
@@ -230,7 +236,52 @@ def get_url_stats(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Short URL tidak ditemukan"
         )
-    return db_url
+
+    # Buat full short URL yang akan dikodekan ke dalam QR code
+    short_url = f"{request.base_url}{short_code}"
+
+    # Generate QR code di memory menggunakan BytesIO (tanpa menyimpan ke disk)
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(short_url)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@app.get("/stats/{short_code}", response_model=URLStatsResponse, tags=["URL Stats"])
+def get_url_stats(
+    short_code: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Mendapatkan statistik akses (click_count) untuk short_code tertentu.
+    Menyertakan qr_url — link ke endpoint QR code untuk short_code ini.
+    """
+    db_url = db.query(models.URL).filter(models.URL.short_code == short_code).first()
+    if not db_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Short URL tidak ditemukan"
+        )
+
+    return URLStatsResponse(
+        short_code=db_url.short_code,
+        long_url=db_url.long_url,
+        click_count=db_url.click_count,
+        created_at=db_url.created_at,
+        qr_url=f"/qr/{db_url.short_code}"
+    )
 
 
 @app.get("/{short_code}", tags=["URL Shortener"])
