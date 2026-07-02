@@ -69,4 +69,15 @@ export function getQrUrl(shortCode) {
   return `${baseURL}/qr/${shortCode}`
 }
 
+/**
+ * Mendapatkan daftar URL pendek yang pernah dibuat.
+ *
+ * @returns {Promise<Array>} List of URL details: { short_code, short_url, long_url, click_count, created_at }
+ */
+export async function getUrls() {
+  const response = await apiClient.get('/urls')
+  return response.data
+}
+
 export default apiClient
+
