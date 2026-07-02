@@ -1,7 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Github, ExternalLink, Zap, BarChart2, QrCode, Timer, ShieldCheck, Link, Server, Gauge, Layers, Heart, ArrowRight } from 'lucide-vue-next'
 import { shortenUrl, getUrls, getStats, getQrUrl } from '../api/shortener.js'
+
+const router = useRouter()
 
 // API base URL for Swagger docs
 const apiDocsUrl = import.meta.env.VITE_API_BASE_URL + '/docs'
@@ -157,24 +160,8 @@ function toggleQr(shortCode) {
 }
 
 // Toggle and fetch URL stats
-async function toggleStats(shortCode) {
-  if (activeStats.value && activeStats.value.short_code === shortCode) {
-    activeStats.value = null
-    return
-  }
-  
-  isLoadingStats.value = true
-  activeQrCode.value = null // close QR if open
-  
-  try {
-    const statsData = await getStats(shortCode)
-    activeStats.value = statsData
-  } catch (err) {
-    console.error('Failed to fetch stats:', err)
-    alert('Failed to load stats. Please try again.')
-  } finally {
-    isLoadingStats.value = false
-  }
+function toggleStats(shortCode) {
+  router.push(`/stats/${shortCode}`)
 }
 
 function scrollToFeatures() {
