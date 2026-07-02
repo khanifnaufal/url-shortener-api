@@ -7,7 +7,7 @@ import secrets
 load_dotenv()
 
 # Baca API_KEY dari environment variable saat module pertama kali di-import
-_API_KEY = os.getenv("API_KEY")
+_API_KEY = os.getenv("API_KEY", "").strip()
 
 if not _API_KEY:
     raise RuntimeError(
