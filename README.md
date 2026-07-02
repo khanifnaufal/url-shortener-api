@@ -1,6 +1,13 @@
-# URL Shortener — Monorepo
+# Shrinkr — URL Shortener Monorepo
 
 A full-stack URL shortener with a **FastAPI** backend and a **Vue 3** frontend, organized as a monorepo.
+
+## 🚀 Live Demo
+
+| Service | Link |
+|---|---|
+| **Frontend** | [shrinkr.vercel.app](https://shrinkr.vercel.app) *(placeholder — update after deploy)* |
+| **API Docs** | [shrinkr-api.railway.app/docs](https://shrinkr-api.railway.app/docs) *(placeholder — update after deploy)* |
 
 ---
 
@@ -14,6 +21,8 @@ url-shortener-api/
 │   ├── models.py
 │   ├── schemas.py
 │   ├── auth.py
+│   ├── Procfile          # Railway deployment
+│   ├── runtime.txt       # Python 3.11
 │   ├── requirements.txt
 │   ├── .env              # ← local only, not committed
 │   └── .env.example
@@ -22,9 +31,13 @@ url-shortener-api/
 │   ├── src/
 │   │   ├── api/
 │   │   │   └── shortener.js   # Axios API client
-│   │   ├── components/
+│   │   ├── views/
+│   │   │   ├── HomeView.vue   # Main page
+│   │   │   └── StatsView.vue  # URL stats page
 │   │   ├── App.vue
 │   │   └── main.js
+│   ├── public/
+│   │   └── favicon.svg
 │   ├── .env              # ← local only, not committed
 │   ├── package.json
 │   └── vite.config.js
@@ -52,6 +65,7 @@ url-shortener-api/
 | **Vue 3** | SPA framework (Composition API) |
 | **Vite** | Dev server & build tool |
 | **Axios** | HTTP client for API calls |
+| **Lucide Vue** | Icon library |
 
 ---
 
@@ -113,9 +127,6 @@ npm install
 ```
 
 #### 3. Setup environment variables
-```bash
-# Edit .env yang sudah ada, atau buat baru:
-```
 Isi `.env`:
 ```
 VITE_API_BASE_URL=http://localhost:8000
@@ -155,8 +166,8 @@ npm run dev
 | Endpoint | Method | Auth | Description |
 |---|---|---|---|
 | `/` | GET | ❌ | Health check |
-| `/shorten` | POST | ✅ | Buat short URL |
-| `/urls` | GET | ✅ | List semua URL |
+| `/shorten` | POST | ✅ Required | Buat short URL |
+| `/urls` | GET | ✅ Required | List semua URL |
 | `/{short_code}` | GET | ❌ | Redirect ke long URL |
 | `/stats/{short_code}` | GET | ❌ | Lihat statistik klik |
 | `/qr/{short_code}` | GET | ❌ | QR code PNG |
@@ -165,19 +176,44 @@ npm run dev
 
 ---
 
+## Deployment
+
+### Backend — Railway
+
+1. Push ke GitHub
+2. Create new Railway project → Deploy from GitHub
+3. Set environment variables:
+   ```
+   API_KEY=your-production-api-key
+   FRONTEND_URL=https://your-app.vercel.app
+   ```
+4. Railway otomatis deteksi `Procfile` dan `runtime.txt`
+
+### Frontend — Vercel
+
+1. Import repository ke Vercel
+2. Set **Root Directory** ke `frontend`
+3. Set environment variables:
+   ```
+   VITE_API_BASE_URL=https://your-api.railway.app
+   VITE_API_KEY=your-production-api-key
+   ```
+
+---
+
 ## Security
 
 - **API Key Authentication** — `POST /shorten` dan `GET /urls` dilindungi `X-API-Key` header
 - **Rate Limiting** — `POST /shorten` dibatasi 10 request/menit per IP
 - **SSRF Prevention** — URL yang mengarah ke localhost/IP privat diblokir
-- **CORS** — Frontend di `http://localhost:5173` diizinkan akses backend
+- **CORS** — Hanya origin yang diizinkan yang bisa akses backend
 
 ---
 
 ## Future Improvements
 
-1. **Malicious URL Screening** — Integrasi Google Safe Browsing API
-2. **Custom Domain** — Support domain kustom sebagai base URL
-3. **User Authentication** — Login untuk manajemen link pribadi
-4. **Bulk Shorten** — Mempendekkan banyak URL dalam satu request
-5. **Frontend Dashboard** — UI lengkap untuk manage dan monitor semua short URL
+* **Malicious URL Screening** — Integrasi Google Safe Browsing API untuk memblokir link berbahaya
+* **Custom Domain** — Support domain kustom sebagai base URL untuk short link
+* **User Authentication** — Login untuk manajemen link pribadi dan dashboard personal
+* **Bulk Shorten** — Mempersingkat banyak URL sekaligus dalam satu request
+* **Frontend Dashboard** — UI lengkap untuk manage dan monitor semua short URL dengan filter dan export

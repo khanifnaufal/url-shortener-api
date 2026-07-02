@@ -121,15 +121,27 @@ async function handleShorten() {
     // Refresh table
     await fetchRecentLinks()
   } catch (err) {
-    // Extract error message from API response
-    if (err.response && err.response.data && err.response.data.detail) {
-      if (Array.isArray(err.response.data.detail)) {
-        error.value = err.response.data.detail[0]?.msg || 'Failed to shorten URL.'
+    if (!err.response) {
+      // Network error (no response received)
+      error.value = 'Unable to connect to server. Please check your connection.'
+    } else if (err.response.status === 429) {
+      // Rate limit exceeded
+      error.value = 'Too many requests. Please wait a moment before trying again.'
+    } else if (err.response.status === 400) {
+      const detail = err.response.data?.detail || ''
+      if (typeof detail === 'string' && detail.toLowerCase().includes('alias')) {
+        error.value = 'This custom alias is already taken. Try another one.'
+      } else if (typeof detail === 'string' && (detail.toLowerCase().includes('url') || detail.toLowerCase().includes('valid'))) {
+        error.value = 'Please enter a valid URL starting with http:// or https://'
       } else {
-        error.value = err.response.data.detail
+        // Fallback for other 400 errors — do not expose technical message
+        error.value = 'Invalid request. Please check your input and try again.'
       }
+    } else if (err.response.data?.detail) {
+      // Any other structured API error — use a generic user-friendly fallback
+      error.value = 'Something went wrong. Please try again.'
     } else {
-      error.value = 'An error occurred while connecting to the server.'
+      error.value = 'An unexpected error occurred. Please try again.'
     }
   } finally {
     isLoading.value = false
@@ -683,6 +695,12 @@ html {
   gap: 20px;
 }
 
+@media (max-width: 480px) {
+  .nav-links {
+    display: none;
+  }
+}
+
 .nav-link {
   font-size: 14px;
   font-weight: 500;
@@ -829,7 +847,7 @@ html {
 
 @media (max-width: 480px) {
   .form-card {
-    padding: 24px 16px;
+    padding: 16px;
   }
 }
 
@@ -1229,6 +1247,8 @@ html {
   border: 1px solid var(--border-color);
   border-radius: 12px;
   overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: var(--shadow-card);
   width: 100%;
 }

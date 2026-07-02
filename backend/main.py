@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 import string
 import secrets
 import logging
+import os
 from typing import List
 from urllib.parse import urlparse
 import socket
@@ -44,9 +45,18 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS — izinkan frontend Vue (Vite dev server) mengakses API
+allowed_origins = [
+    "http://localhost:5173",
+    "https://*.vercel.app",
+    os.getenv("FRONTEND_URL", ""),
+]
+# Filter out empty strings
+allowed_origins = [o for o in allowed_origins if o]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
