@@ -47,6 +47,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS — izinkan frontend Vue (Vite dev server) mengakses API
 allowed_origins = [
     "http://localhost:5173",
+    "https://url-shortener-api-gilt.vercel.app",
     "https://*.vercel.app",
     os.getenv("FRONTEND_URL", ""),
 ]
