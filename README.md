@@ -1,54 +1,38 @@
-# Shrinkr — URL Shortener Monorepo
+# Shrinkr — URL Shortener
 
-A full-stack URL shortener with a **FastAPI** backend and a **Vue 3** frontend, organized as a monorepo.
+> Shorten links, share anywhere. Fast. Simple. Reliable.
+
+A full-stack URL shortener built with **FastAPI** and **Vue 3**, featuring real-time click analytics, QR code generation, and link expiry — organized as a clean monorepo.
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-shriiinkr.vercel.app-6366F1?style=flat-square&logo=vercel)](https://shriiinkr.vercel.app)
+[![API Docs](https://img.shields.io/badge/API%20Docs-shrinkr.up.railway.app%2Fdocs-0B1F3A?style=flat-square&logo=fastapi)](https://shrinkr.up.railway.app/docs)
+[![Python](https://img.shields.io/badge/Python-3.11-blue?style=flat-square&logo=python)](https://python.org)
+[![Vue](https://img.shields.io/badge/Vue-3.x-42b883?style=flat-square&logo=vue.js)](https://vuejs.org)
+
+---
+
+## ✨ Features
+
+- 🔗 **Instant URL Shortening** — Generate short links in milliseconds
+- 📊 **Click Analytics** — Track every click with real-time stats
+- 📱 **QR Code Generation** — Auto-generate downloadable QR codes for every link
+- ⏱️ **Link Expiry** — Set links to expire automatically after hours or days
+- 🛡️ **Rate Limiting** — Protected against spam with 10 req/min per IP
+- ✏️ **Custom Alias** — Create memorable short links with custom names
+- 🔒 **API Key Auth** — Secure endpoints with header-based authentication
+
+---
 
 ## 🚀 Live Demo
 
-| Service | Link |
+| Service | URL |
 |---|---|
-| **Frontend** | [shrinkr.vercel.app](https://shrinkr.vercel.app) *(placeholder — update after deploy)* |
-| **API Docs** | [shrinkr-api.railway.app/docs](https://shrinkr-api.railway.app/docs) *(placeholder — update after deploy)* |
+| **Frontend** | [shriiinkr.vercel.app](https://shriiinkr.vercel.app) |
+| **API Docs** | [shrinkr.up.railway.app/docs](https://shrinkr.up.railway.app/docs) |
 
 ---
 
-## Project Structure
-
-```
-url-shortener-api/
-├── backend/          # FastAPI REST API
-│   ├── main.py
-│   ├── database.py
-│   ├── models.py
-│   ├── schemas.py
-│   ├── auth.py
-│   ├── Procfile          # Railway deployment
-│   ├── runtime.txt       # Python 3.11
-│   ├── requirements.txt
-│   ├── .env              # ← local only, not committed
-│   └── .env.example
-│
-├── frontend/         # Vue 3 + Vite SPA
-│   ├── src/
-│   │   ├── api/
-│   │   │   └── shortener.js   # Axios API client
-│   │   ├── views/
-│   │   │   ├── HomeView.vue   # Main page
-│   │   │   └── StatsView.vue  # URL stats page
-│   │   ├── App.vue
-│   │   └── main.js
-│   ├── public/
-│   │   └── favicon.svg
-│   ├── .env              # ← local only, not committed
-│   ├── package.json
-│   └── vite.config.js
-│
-├── .gitignore        # Root gitignore (covers both backend & frontend)
-└── README.md
-```
-
----
-
-## Tech Stack
+## 🛠️ Tech Stack
 
 ### Backend
 | Tech | Role |
@@ -57,163 +41,204 @@ url-shortener-api/
 | **SQLite + SQLAlchemy** | Database & ORM |
 | **slowapi** | Rate limiting |
 | **qrcode[pil]** | QR code generation |
-| **python-dotenv** | Environment variables |
+| **python-dotenv** | Environment variable management |
 
 ### Frontend
 | Tech | Role |
 |---|---|
-| **Vue 3** | SPA framework (Composition API) |
+| **Vue 3** | SPA framework (Composition API + `<script setup>`) |
 | **Vite** | Dev server & build tool |
-| **Axios** | HTTP client for API calls |
+| **Axios** | HTTP client |
 | **Lucide Vue** | Icon library |
+| **Vue Router 4** | Client-side routing |
 
 ---
 
-## Getting Started
+## 📁 Project Structure
 
-### Backend
-
-#### 1. Masuk ke folder backend
-```bash
-cd backend
 ```
-
-#### 2. Buat & aktifkan virtual environment
-```bash
-# Windows
-python -m venv venv
-.\venv\Scripts\activate
-
-# macOS / Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-#### 3. Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-#### 4. Setup environment variables
-```bash
-cp .env.example .env
-```
-Edit `.env`:
-```
-API_KEY=your-secret-api-key-here
-```
-
-#### 5. Jalankan server
-```bash
-uvicorn main:app --reload
-```
-
-Backend berjalan di:
-- **API**: `http://localhost:8000`
-- **Swagger UI**: `http://localhost:8000/docs`
-
----
-
-### Frontend
-
-#### 1. Masuk ke folder frontend
-```bash
-cd frontend
-```
-
-#### 2. Install dependencies
-```bash
-npm install
-```
-
-#### 3. Setup environment variables
-Isi `.env`:
-```
-VITE_API_BASE_URL=http://localhost:8000
-VITE_API_KEY=your-secret-api-key-here   # sama dengan API_KEY di backend/.env
-```
-
-#### 4. Jalankan dev server
-```bash
-npm run dev
-```
-
-Frontend berjalan di: **`http://localhost:5173`**
-
----
-
-## Running Both Simultaneously
-
-Buka **dua terminal terpisah**:
-
-**Terminal 1 — Backend:**
-```bash
-cd backend
-.\venv\Scripts\activate   # Windows
-uvicorn main:app --reload
-```
-
-**Terminal 2 — Frontend:**
-```bash
-cd frontend
-npm run dev
+shrinkr/
+├── backend/                  # FastAPI REST API
+│   ├── main.py               # App entry point, routes, middleware
+│   ├── database.py           # SQLAlchemy engine & session
+│   ├── models.py             # Database models
+│   ├── schemas.py            # Pydantic request/response schemas
+│   ├── auth.py               # API key authentication
+│   ├── Procfile              # Railway deployment config
+│   ├── runtime.txt           # Python 3.11 pin
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── .env                  # ← local only, not committed
+│
+├── frontend/                 # Vue 3 + Vite SPA
+│   ├── src/
+│   │   ├── api/
+│   │   │   └── shortener.js  # Axios API client
+│   │   ├── views/
+│   │   │   ├── HomeView.vue  # Main page
+│   │   │   └── StatsView.vue # Link stats page
+│   │   ├── App.vue
+│   │   └── main.js
+│   ├── public/
+│   │   └── favicon.svg
+│   ├── package.json
+│   ├── vite.config.js
+│   └── .env                  # ← local only, not committed
+│
+└── README.md
 ```
 
 ---
 
-## API Overview
+## 🔌 API Reference
 
 | Endpoint | Method | Auth | Description |
 |---|---|---|---|
-| `/` | GET | ❌ | Health check |
-| `/shorten` | POST | ✅ Required | Buat short URL |
-| `/urls` | GET | ✅ Required | List semua URL |
-| `/{short_code}` | GET | ❌ | Redirect ke long URL |
-| `/stats/{short_code}` | GET | ❌ | Lihat statistik klik |
-| `/qr/{short_code}` | GET | ❌ | QR code PNG |
+| `/` | `GET` | ❌ | Health check |
+| `/shorten` | `POST` | ✅ | Create a short URL |
+| `/urls` | `GET` | ✅ | List all short URLs |
+| `/{short_code}` | `GET` | ❌ | Redirect to original URL |
+| `/stats/{short_code}` | `GET` | ❌ | View click statistics |
+| `/qr/{short_code}` | `GET` | ❌ | Get QR code as PNG |
 
-> **Auth**: Kirim header `X-API-Key: <your-api-key>` pada endpoint yang memerlukan autentikasi.
+> **Authentication:** Include `X-API-Key: <your-api-key>` header on protected endpoints.
+
+### Example Request
+
+```bash
+curl -X POST https://shrinkr.up.railway.app/shorten \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"long_url": "https://example.com/very/long/url", "custom_alias": "my-link"}'
+```
+
+### Example Response
+
+```json
+{
+  "short_code": "my-link",
+  "short_url": "https://shrinkr.up.railway.app/my-link",
+  "long_url": "https://example.com/very/long/url",
+  "created_at": "2026-07-02T10:00:00"
+}
+```
 
 ---
 
-## Deployment
+## ⚙️ Local Development
 
-### Backend — Railway
+### Prerequisites
 
-1. Push ke GitHub
-2. Create new Railway project → Deploy from GitHub
-3. Set environment variables:
+- Python 3.11+
+- Node.js 18+
+
+### Backend
+
+```bash
+# 1. Navigate to backend
+cd backend
+
+# 2. Create & activate virtual environment
+python -m venv venv
+source venv/bin/activate        # macOS/Linux
+.\venv\Scripts\activate         # Windows
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Set up environment variables
+cp .env.example .env
+# Edit .env and set your API_KEY
+
+# 5. Start the server
+uvicorn main:app --reload
+```
+
+Backend available at:
+- **API:** `http://localhost:8000`
+- **Swagger UI:** `http://localhost:8000/docs`
+
+### Frontend
+
+```bash
+# 1. Navigate to frontend
+cd frontend
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up environment variables
+# Create .env with:
+# VITE_API_BASE_URL=http://localhost:8000
+# VITE_API_KEY=your-api-key-here
+
+# 4. Start the dev server
+npm run dev
+```
+
+Frontend available at: `http://localhost:5173`
+
+### Running Both Simultaneously
+
+Open two terminals:
+
+```bash
+# Terminal 1 — Backend
+cd backend && uvicorn main:app --reload
+
+# Terminal 2 — Frontend
+cd frontend && npm run dev
+```
+
+---
+
+## 🚢 Deployment
+
+### Backend → Railway
+
+1. Push to GitHub
+2. Create new Railway project → **Deploy from GitHub repo**
+3. Set **Root Directory** to `backend`
+4. Add environment variables:
    ```
    API_KEY=your-production-api-key
    FRONTEND_URL=https://your-app.vercel.app
    ```
-4. Railway otomatis deteksi `Procfile` dan `runtime.txt`
+5. Railway auto-detects `Procfile` and `runtime.txt`
 
-### Frontend — Vercel
+### Frontend → Vercel
 
-1. Import repository ke Vercel
-2. Set **Root Directory** ke `frontend`
-3. Set environment variables:
+1. Import repository to Vercel
+2. Set **Root Directory** to `frontend`
+3. Add environment variables:
    ```
    VITE_API_BASE_URL=https://your-api.railway.app
    VITE_API_KEY=your-production-api-key
    ```
+4. Deploy
 
 ---
 
-## Security
+## 🔐 Security
 
-- **API Key Authentication** — `POST /shorten` dan `GET /urls` dilindungi `X-API-Key` header
-- **Rate Limiting** — `POST /shorten` dibatasi 10 request/menit per IP
-- **SSRF Prevention** — URL yang mengarah ke localhost/IP privat diblokir
-- **CORS** — Hanya origin yang diizinkan yang bisa akses backend
+| Measure | Details |
+|---|---|
+| **API Key Auth** | `POST /shorten` and `GET /urls` require `X-API-Key` header |
+| **Rate Limiting** | 10 requests/minute per IP on `/shorten` |
+| **SSRF Prevention** | Blocks URLs pointing to localhost or private IP ranges |
+| **CORS** | Restricted to configured allowed origins only |
+| **SQL Injection** | Prevented by SQLAlchemy ORM (parameterized queries) |
 
 ---
 
-## Future Improvements
 
-* **Malicious URL Screening** — Integrasi Google Safe Browsing API untuk memblokir link berbahaya
-* **Custom Domain** — Support domain kustom sebagai base URL untuk short link
-* **User Authentication** — Login untuk manajemen link pribadi dan dashboard personal
-* **Bulk Shorten** — Mempersingkat banyak URL sekaligus dalam satu request
-* **Frontend Dashboard** — UI lengkap untuk manage dan monitor semua short URL dengan filter dan export
+## 👤 Author
+
+**Muhammad Khanif Naufal**
+- GitHub: [@khanifnaufal](https://github.com/khanifnaufal)
+
+---
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
