@@ -10,7 +10,10 @@ import { Github, ArrowRight, Server, Gauge, Layers, Heart } from 'lucide-vue-nex
         <span class="about-badge">Open Source</span>
         <h2 class="about-heading">Built for developers,<br>loved by everyone</h2>
         <p class="about-desc">
-          Lnk.sh is a fast, simple URL shortener with built-in analytics and QR code generation. Built with FastAPI and Vue 3, designed to be clean and easy to use.
+         Shrinkr is an open-source URL shortener built 
+with FastAPI and Vue 3. Shorten any link, track 
+clicks in real-time, and generate QR codes — 
+all in one clean, minimal interface.
         </p>
         <a
           href="https://github.com/khanifnaufal/url-shortener-api"
